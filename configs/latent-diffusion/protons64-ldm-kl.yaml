@@ -10,7 +10,6 @@ model:
     loss_type: l2                     
     first_stage_key: "image"
     # cond_stage_key: "image"      ## Unconditional 
-    # cond_stage_key: "class_label"     ## Class-based condition (WiP)
     cond_stage_key: "momentum"     ## Condition on momentum 
     image_size: 64
     channels: 1
@@ -42,11 +41,9 @@ model:
         num_res_blocks: 2
         channel_mult: [ 1,2,2,4,4]  # 32, 16, 8, 4, 2
         num_heads: 4
-        # use_scale_shift_norm: True
-        # resblock_updown: True
-        use_spatial_transformer: True ## cond
-        transformer_depth: 1 ## cond
-        context_dim: 3 ## cond 
+        use_spatial_transformer: True ## Use cross attantion
+        transformer_depth: 1          ## cond
+        context_dim: 1                ## Embedding dimension 
         legacy: False ## cond
 
     first_stage_config:
@@ -54,7 +51,8 @@ model:
       params:
         embed_dim: 3
         monitor: "val/rec_loss"
-        ckpt_path: "protons64_ae_16x16x3/runs/checkpoints/last.ckpt"
+        ckpt_path: "protons64sqrt_ae_16x16x3/runs/checkpoints/epoch=000099.ckpt" 
+        # ckpt_path: "protons64sqrt_ae_16x16x3/runs/checkpoints/epoch=000142.ckpt" 
         # ckpt_path: "protons64_ae_8x8x3/runs/checkpoints/last.ckpt"
         ddconfig:
           double_z: True
@@ -77,71 +75,29 @@ model:
     cond_stage_config: 
       target: ldm.modules.encoders.modules.MomentumEmbedder
       params:
-        n_embed: 3
-        # n_embed: 256 
-    
-    # Class Conditioning 
-    # cond_stage_config:
-    #   target: ldm.modules.encoders.modules.ClassEmbedder
-    #   params:
-    #     n_classes: 2
-    #     embed_dim: 512
-    #     key: "class_label" 
-
-    # cond_stage_config: 
-    #   target: ldm.modules.encoders.modules.TransformerEmbedder
-    #   params:
-    #     n_embed: 3
-    #     n_layer: 1 
-    #     vocab_size: 10
-
-
-
-# data:
-#   target: main.DataModuleFromConfig
-#   params:
-#     batch_size: 16
-#     num_workers: 2
-#     wrap: True
-#     train:
-#       target: ldm.data.protons64.protons64Train 
-#       params:
-#         size: 64 
-#         events_per_batch: 128
-#         num_batches: 1152 ## set by hand (TODO)
-#     validation:
-#       target: ldm.data.protons64.protons64Validation
-#       params:
-#         size: 64
-#         events_per_batch: 128
-#         num_batches: 152 ## set by hand (TODO)
+        # n_embed: 3
+        n_embed: 0 ## no embedding
 
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 16
+    batch_size: 64
     num_workers: 2
     wrap: False ## True
     train:
-      target: ldm.data.protons64.protons64xTrain 
-      params:
-        size: 64 
-        events_per_batch: 64
-        num_batches: 311 ## set by hand (TODO)
+      target: ldm.data.protons64.protons64Train
+      # target: ldm.data.protons64.protons64xTrain 
     validation:
-      target: ldm.data.protons64.protons64xValidation
-      params:
-        size: 64
-        events_per_batch: 64
-        num_batches: 42 ## set by hand (TODO)
-
+      target: ldm.data.protons64.protons64Validation
+      # target: ldm.data.protons64.protons64xValidation
+      
 
 lightning:
   callbacks:
     image_logger:
       target: main.ImageLogger
       params:
-        batch_frequency: 2500
+        batch_frequency: 5000
         max_images: 8
         increase_log_steps: False
     
@@ -153,5 +109,5 @@ lightning:
   trainer:
     benchmark: False 
     # max_steps: 10000
-    max_epochs: 25
-    val_check_interval: 200   ## 1000 Validation Frequency  
+    max_epochs: 150
+    val_check_interval: 200   ## 1000 Validation Frequency (batches) 

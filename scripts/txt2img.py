@@ -12,7 +12,9 @@ from ldm.util import instantiate_from_config
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 
-import traceback
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
+warnings.filterwarnings("ignore", category=FutureWarning) 
 
 def load_model_from_config(config, ckpt, verbose=False):
     print(f"Loading model from {ckpt}")
@@ -113,6 +115,7 @@ if __name__ == "__main__":
         default=5.0,
         help="unconditional guidance scale: eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))",
     )
+
     parser.add_argument(
         "-r",
         "--resume",
@@ -120,6 +123,7 @@ if __name__ == "__main__":
         nargs="?",
         help="load from logdir or checkpoint in logdir",
     )
+    
     parser.add_argument(
         "-b",
         "--base",
@@ -127,6 +131,7 @@ if __name__ == "__main__":
         nargs="?",
         help="config yaml file",
     )
+
     opt = parser.parse_args()
 
 
@@ -147,54 +152,30 @@ if __name__ == "__main__":
     os.makedirs(opt.outdir, exist_ok=True)
     outpath = opt.outdir
 
+    ## Construct and normalize momentum vector  
     momentum = [float(opt.px), float(opt.py), float(opt.pz)]
-    prompt = torch.tensor(momentum, dtype=torch.float32).to(device) / 500.0
+    prompt = torch.tensor(momentum, dtype=torch.float32).to(device) 
+    prompt = prompt / 500 
+    prompts = prompt.repeat(opt.n_samples, 1)
 
+    print(prompts.shape)
+    print("Using embedding model =", model.cond_stage_model)
+    print("Using prompt =", prompt)
 
-    
-    # prompt = torch.tensor().to(device)
-    # prompt = prompt.repeat(opt.n_samples, 1)
-    ## Class Conditional 
-    # prompt = int(1)
-    prompt = (opt.n_samples * [prompt])
-    # prompt = {"class_label": torch.tensor(prompt).to(device)}
-    prompt = torch.tensor(prompt).to(device)
-    # print(prompt)
-    # exit()
+    if opt.n_iter > 1:
+        sample_path = os.path.join(outpath, "samples")
+        os.makedirs(sample_path, exist_ok=True)
 
-    # prompt = 1
-    # {model.cond_stage_key: xc.to(model.device)}
-    # prompt = {"class_label": 1}
-    # print(opt.n_samples * [prompt])
-    # exit()
-
-    print("My prompt =", prompt)
-    print("My cond model =", model.cond_stage_model)
-
-    sample_path = os.path.join(outpath, "samples")
-    os.makedirs(sample_path, exist_ok=True)
-    base_count = len(os.listdir(sample_path))
-
-    all_samples=list()
     with torch.no_grad():
         with model.ema_scope():
-            uc = None
-            # if opt.scale != 1.0:
-            #     uc = model.get_learned_conditioning(opt.n_samples * [""])
             for n in trange(opt.n_iter, desc="Sampling"):
-                # c = model.get_learned_conditioning(opt.n_samples * [prompt])
-                
-                # c = [model.cond_stage_model(prompt)] * opt.n_samples
 
-                c = model.cond_stage_model(prompt)
-                # c = c.repeat(opt.n_samples, 1)
+                ## Tokenize and embed condition prompt 
+                c = model.cond_stage_model(prompts)
+                # print("Embdedded cond:", c.shape)
 
-                '''
-                uc = unconditional_conditioning 
-                This should be the null, so 
-                '''
-                uc = c.clone()
-                # uc = "" 
+                ## Null prompt (unconditional condition)
+                uc = "" 
 
                 shape = [model.model.diffusion_model.in_channels,
                     model.model.diffusion_model.image_size,
@@ -214,44 +195,26 @@ if __name__ == "__main__":
                 x_samples_ddim = x_samples_ddim.cpu() 
                 x_samples_ddim = x_samples_ddim.squeeze()
 
-                print("Output:", x_samples_ddim.shape)
+                # print("Output:", x_samples_ddim.shape)
 
                 ## Plot grid of generated samples 
-                grid_size = int(np.sqrt(opt.n_samples))
-                fig, axes = plt.subplots(grid_size, grid_size, figsize=(8, 8))
-                axes = axes.ravel() # Flatten axes array for easy iteration 
+                if opt.n_iter == 1:
+                    grid_size = 4
+                    fig, axes = plt.subplots(grid_size, grid_size, figsize=(8, 8))
+                    axes = axes.ravel() # Flatten axes array for easy iteration 
 
-                fig.suptitle("Cond: "+str(momentum)+" / 500", fontsize=20)
-                # fig.suptitle("Class Condition = 1 (up)", fontsize=20)    
-                for i in range(opt.n_samples):
-                    axes[i].imshow(x_samples_ddim[i] , cmap='gray')
-                    axes[i].axis('off')
+                    max_val = x_samples_ddim.max().item() # Max pixel value in batch (careful if all low energy)
+                    print("max", max_val)
+                    
+                    fig.suptitle("Cond: "+str(momentum)+" / 500", fontsize=20)
+                    for i in range(grid_size**2):
+                        axes[i].imshow(x_samples_ddim[i] , cmap='gray', interpolation='none', vmax=max_val)
+                        axes[i].axis('off')
 
-                plt.tight_layout()
-                plt.savefig("cond_samples/cond_samples.png")
-                print("Saved: cond_samples/cond_samples.png")
+                    plt.tight_layout()
+                    plt.savefig("cond_samples/cond_samples.png")
+                    print("Saved: cond_samples/cond_samples.png")
 
                 # Save 
-                # np.save("cond_samples/batch_0.npy", x_samples_ddim)
-
-                exit()
-
-                x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0, min=0.0, max=1.0)
-
-                for x_sample in x_samples_ddim:
-                    x_sample = 255. * rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
-                    Image.fromarray(x_sample.astype(np.uint8)).save(os.path.join(sample_path, f"{base_count:04}.png"))
-                    base_count += 1
-                all_samples.append(x_samples_ddim)
-
-
-    # additionally, save as grid
-    grid = torch.stack(all_samples, 0)
-    grid = rearrange(grid, 'n b c h w -> (n b) c h w')
-    grid = make_grid(grid, nrow=opt.n_samples)
-
-    # to image
-    grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
-    Image.fromarray(grid.astype(np.uint8)).save(os.path.join(outpath, f'{prompt.replace(" ", "-")}.png'))
-
-    print(f"Your samples are ready and waiting four you here: \n{outpath} \nEnjoy.")
+                if opt.n_iter > 1:
+                    np.save(sample_path + "/batch_"+str(n)+".npy", x_samples_ddim)

@@ -34,13 +34,23 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 64 
+    batch_size: 16 
     wrap: True
-    num_workers: 2 ## default is batch_size*2 
+    num_workers: 4 ## default is batch_size*2 
     train:
       target: ldm.data.protons64.protons64Train 
+      params:
+        size: 64 
+        events_per_batch: 128
+        num_batches: 1152 ## set by hand (TODO: auto)
+        # interpolation: bilinear
     validation:
       target: ldm.data.protons64.protons64Validation 
+      params:
+        size: 64 
+        events_per_batch: 128
+        num_batches: 152 ## set by hand (TODO: auto)
+        # interpolation: bilinear
 
 lightning:
   callbacks:
@@ -54,5 +64,6 @@ lightning:
   trainer:
     benchmark: False 
     accumulate_grad_batches: 2
-    max_epochs: 150 
-    val_check_interval: 500   ## Validation Frequency  
+    max_epochs: 20 
+    # max_steps: 1000             ## Not working with autoencoder?   
+    val_check_interval: 2000   ## Validation Frequency  

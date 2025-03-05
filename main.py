@@ -29,6 +29,7 @@ import warnings
 ## Hide warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
+print_config = False # Global variable hack for convience
 
 
 def get_parser(**parser_kwargs):
@@ -314,13 +315,15 @@ class SetupCallback(Callback):
             if "callbacks" in self.lightning_config:
                 if 'metrics_over_trainsteps_checkpoint' in self.lightning_config['callbacks']:
                     os.makedirs(os.path.join(self.ckptdir, 'trainstep_checkpoints'), exist_ok=True)
-            # print("Project config")
-            # print(OmegaConf.to_yaml(self.config))
+            if print_config:
+                print("Project config")
+                print(OmegaConf.to_yaml(self.config))
             OmegaConf.save(self.config,
                            os.path.join(self.cfgdir, "{}-project.yaml".format(self.now)))
-
-            # print("Lightning config")
-            # print(OmegaConf.to_yaml(self.lightning_config))
+            
+            if print_config:
+                print("Lightning config")
+                print(OmegaConf.to_yaml(self.lightning_config))
             OmegaConf.save(OmegaConf.create({"lightning": self.lightning_config}),
                            os.path.join(self.cfgdir, "{}-lightning.yaml".format(self.now)))
 
@@ -596,6 +599,7 @@ if __name__ == "__main__":
     seed_everything(opt.seed)
 
     if opt.log_wandb: 
+        print_config = True 
         wandb.init(project=opt.logdir, sync_tensorboard=True)
 
     try:
@@ -956,7 +960,7 @@ if __name__ == "__main__":
             for my_idx, my_batch in enumerate(my_loader):
 
                 # Hack to iterate batch for plotting latents purposes 
-                batch_skips = 0
+                batch_skips = 2
                 if my_idx < batch_skips and opt.plot_latents: 
                     continue 
 
@@ -1081,7 +1085,7 @@ if __name__ == "__main__":
                         my_z = my_z.permute(0,2,3,1) # (b,c,h,w) -> (b,h,w,c) 
 
                     rows = 5
-                    offset = 5 # start idx for visualizing  
+                    offset = 12 # start idx for visualizing  
                     fig, axes = plt.subplots(rows, 3, figsize=(4, 6))
  
                     for i in range(rows):
@@ -1115,7 +1119,26 @@ if __name__ == "__main__":
             
             # Do not train if saving latents  
             exit()
-              
+        
+        # print("HERE DEBUGGING")
+        # my_loader = data.train_dataloader()
+        # for my_batch in my_loader:
+        #     imgs  = my_batch['image']
+        #     moms = my_batch['momentum']
+        #     print("Train:", imgs.shape, moms.shape)
+        #     print("\t", imgs.min(), imgs.mean(), imgs.max())
+        #     break
+        # my_loader = data.val_dataloader()
+        # for my_batch in my_loader:
+        #     imgs  = my_batch['image']
+        #     moms = my_batch['momentum']
+        #     print("Val:", imgs.shape, moms.shape)
+        #     print("\t", imgs.min(), imgs.mean(), imgs.max())
+        #     break
+        # # print(data)
+        # # print(data.shape)
+        # exit() 
+
         # run
         if opt.train:
             try:

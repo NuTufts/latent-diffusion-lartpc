@@ -6,10 +6,16 @@ __pycache__/
 ## Log dirs
 *_logs*
 score_gen_latent_data
-protons64_sample
+cond_samples
+one_mom_sample
+pretrained
+protons64*
+wandb
 
 ## Temporary 
 z_imgs.png
+ztest.png
+zzz*
 
 ## builds with LDM repo (unmodified) 
 taming

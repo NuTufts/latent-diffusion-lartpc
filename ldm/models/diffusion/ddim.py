@@ -182,9 +182,12 @@ class DDIMSampler(object):
             # t_in = torch.cat([t] * 2)
             # c_in = torch.cat([unconditional_conditioning, c])
             # e_t_uncond, e_t = self.model.apply_model(x_in, t_in, c_in).chunk(2) # runs model twice (for each chunk)
+            
+            # e_t = self.model.apply_model(x, t, c)
+            # e_t_uncond =  self.model.apply_model(x, t, None)
+            # print("=== UNCOND DONE ===")
             e_t = self.model.apply_model(x, t, c)
-            e_t_uncond =  self.model.apply_model(x, t, None)
-            e_t = e_t_uncond + unconditional_guidance_scale * (e_t - e_t_uncond)
+            # e_t = e_t_uncond + unconditional_guidance_scale * (e_t - e_t_uncond)
 
         if score_corrector is not None:
             assert self.model.parameterization == "eps"

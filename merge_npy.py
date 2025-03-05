@@ -1,5 +1,27 @@
 import os
 import numpy as np
+import matplotlib.pyplot as plt
+
+## show sample 
+
+my_dir = "/n/home11/zimani/datasets/protons64/test/"
+
+data_file = my_dir + "protons64_100.npy"
+mom_file = data = my_dir + "protons64_mom_100.npy"
+
+data = np.load(data_file)
+mom = np.load(mom_file)
+
+idx = 4
+
+plt.imshow(data[idx], cmap='gray')
+plt.title(str(mom[idx]), fontsize=20)
+plt.axis('off')
+plt.tight_layout()
+plt.savefig("zzz.png")
+
+
+exit() 
 
 # Define the directory containing the .npy files
 directory = 'protons64_sample/samples/'

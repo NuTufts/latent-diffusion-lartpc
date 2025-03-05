@@ -1321,7 +1321,9 @@ class LatentDiffusion(DDPM):
         if ddim:
             ddim_sampler = DDIMSampler(self)
             # shape = (self.channels, self.image_size, self.image_size)
-            shape = (3, 16, 16) ## LArTPC edit: hardcoded latent shape 
+            shape = (self.model.diffusion_model.in_channels, 
+                     self.model.diffusion_model.image_size,
+                     self.model.diffusion_model.image_size)
             samples, intermediates =ddim_sampler.sample(ddim_steps,batch_size,
                                                         shape,cond,verbose=False,**kwargs)
 
@@ -1496,21 +1498,11 @@ class DiffusionWrapper(pl.LightningModule):
             print("DiffWarper:", string)
 
     def forward(self, x, t, c_concat: list = None, c_crossattn: list = None):
-
         self.print_me("DiffWraper: forward")
-        # print("\t", c_crossattn)
-        # exit() 
 
-        if c_crossattn == [None]:
+        if c_crossattn == [None]: ## Hack for unconditional conditional generation (null prompt)
             out = self.diffusion_model(x, t)
-            return out 
-
-        # print("Z self.condioning key:", self.conditioning_key)
-        # print("Z c_crossattn:", c_crossattn)
-        # exit()
-        # print(self.diff_model_config)
-
-        if self.conditioning_key is None:
+        elif self.conditioning_key is None:
             out = self.diffusion_model(x, t)
         elif self.conditioning_key == 'concat':
             xc = torch.cat([x] + c_concat, dim=1)

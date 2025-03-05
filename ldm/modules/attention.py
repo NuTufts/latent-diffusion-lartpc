@@ -170,6 +170,7 @@ class CrossAttention(nn.Module):
     def forward(self, x, context=None, mask=None):
         h = self.heads
 
+
         q = self.to_q(x)
         context = default(context, x) # use x if context=None
         k = self.to_k(context)

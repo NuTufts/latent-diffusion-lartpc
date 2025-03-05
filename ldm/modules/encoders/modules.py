@@ -31,18 +31,25 @@ class ClassEmbedder(nn.Module):
         c = batch[key][:, None]
         c = self.embedding(c)
         return c
+ 
 
-## Use embedding for momentum  
 class MomentumEmbedder(AbstractEncoder): 
 
-    def __init__(self, n_embed, device="cuda"):
+    def __init__(self, n_embed=256, device="cuda"):
         super().__init__()
         self.device = device
-        self.embedding_layer = nn.Linear(3, n_embed)
+        self.n_embed = n_embed
+        if self.n_embed > 0: 
+            self.embedding_layer = nn.Linear(1, self.n_embed)
 
     def forward(self, momentum): 
         momentum.to(self.device)
-        emb = self.embedding_layer(momentum)
+        batch_size = momentum.shape[0]
+        momentum = momentum.view(batch_size, 3, 1) #(batch, 3, 1)
+        if self.n_embed > 0: 
+            emb = self.embedding_layer(momentum) #(batch, 3, n_emb)
+        else: 
+            emb = momentum
         return emb
 
     def encode(self, x): 
@@ -71,6 +78,7 @@ class MomentumEmbedder(AbstractEncoder):
     #         emb = torch.nn.functional.pad(emb, (0, 1))
 
     #     return emb
+
 
 class TransformerEmbedder(AbstractEncoder):
     """Some transformer encoder layers"""
