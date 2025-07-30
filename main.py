@@ -29,7 +29,7 @@ import warnings
 ## Hide warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
-print_config = False # Global variable hack for convience
+print_config = True # Global variable hack for convience
 
 
 def get_parser(**parser_kwargs):
@@ -797,8 +797,9 @@ if __name__ == "__main__":
             # run all checkpoint hooks
             if trainer.global_rank == 0:
                 print("Summoning checkpoint.")
-                ckpt_path = os.path.join(ckptdir, "last.ckpt")
-                trainer.save_checkpoint(ckpt_path)
+                print("NOT")
+                # ckpt_path = os.path.join(ckptdir, "last.ckpt")
+                # trainer.save_checkpoint(ckpt_path)
             if opt.log_wandb:
                 wandb.finish()
 
@@ -985,9 +986,9 @@ if __name__ == "__main__":
                     prev_time = time.time()
 
                 # Stop at maximum requested latents (max_imgs) 
-                if my_idx >= max_imgs//config.data.params.batch_size: 
-                    print('End time', int(time.time()-start_time))
-                    exit() 
+                # if my_idx >= max_imgs//config.data.params.batch_size: 
+                #     print('End time', int(time.time()-start_time))
+                #     exit() 
 
                 '''
                 model.get_input = [z, cond, x, reco]
@@ -1002,6 +1003,10 @@ if __name__ == "__main__":
                 ## HACK: Override inputs
                 # my_data = torch.tensor(np.load("cond_samples/batch_0.npy")) 
                 # my_mom = torch.tensor(np.load("hack_dists/hack_train_moms.npy")) 
+                # data_path = "/n/home11/zimani/proton64_analysis/sample1_modes/"
+                # my_data = torch.tensor(np.load(data_path+"mode3.npy")) # 300 events
+                # one_mom = [314.0, -126.4, 249.1]
+                # my_mom = torch.tensor(np.full((300,3), one_mom))
                 # my_batch = {'image': my_data,
                 #             'momentum': my_mom}
 
@@ -1024,8 +1029,8 @@ if __name__ == "__main__":
                 my_x = my_out[2].detach().cpu()
                 my_r = my_out[3].detach().cpu()
 
-                print("Input:", my_x.shape)
-                print("Latent:", my_z.shape)
+                # print("Input:", my_x.shape)
+                # print("Latent:", my_z.shape)
 
                 ## Hack to interpolate between latents
                 # if my_idx == 0: 
@@ -1067,11 +1072,13 @@ if __name__ == "__main__":
 
                 ## Save batch as npy file 
                 if not opt.plot_latents : 
-                    np.save(opt.save_latents+"/latents_batch_"+str(my_idx), my_z)
-                    np.save(opt.save_latents+"/inputs_batch_"+str(my_idx), my_x)
-                    np.save(opt.save_latents+"/recos_batch_"+str(my_idx), my_r)
-                    print("~~ Saved Latents:", opt.save_latents)
-                    exit() 
+                    np.save(opt.save_latents+"/batch_"+str(my_idx), my_z)
+                    np.save(opt.save_latents+"/batch_mom_"+str(my_idx), my_batch['momentum'])
+                    # np.save(opt.save_latents+"/latents_batch_"+str(my_idx), my_z)
+                    # np.save(opt.save_latents+"/inputs_batch_"+str(my_idx), my_x)
+                    # np.save(opt.save_latents+"/recos_batch_"+str(my_idx), my_r)
+                    # print("~~ Saved Latents:", opt.save_latents)
+                    # exit() 
                     # np.save(opt.save_latents+"/posterior_batch_"+str(my_idx), posterior)
 
                 ## HACK: override inputs pt. 2
@@ -1085,7 +1092,7 @@ if __name__ == "__main__":
                         my_z = my_z.permute(0,2,3,1) # (b,c,h,w) -> (b,h,w,c) 
 
                     rows = 5
-                    offset = 12 # start idx for visualizing  
+                    offset = 13 # start idx for visualizing  
                     fig, axes = plt.subplots(rows, 3, figsize=(4, 6))
  
                     for i in range(rows):

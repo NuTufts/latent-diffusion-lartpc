@@ -34,26 +34,70 @@ class ClassEmbedder(nn.Module):
  
 
 class MomentumEmbedder(AbstractEncoder): 
-
-    def __init__(self, n_embed=256, device="cuda"):
+    def __init__(self, n_embed=256, prompt_dim=3, device="cuda"):
         super().__init__()
         self.device = device
         self.n_embed = n_embed
+        self.prompt_dim = prompt_dim  # px, py, pz (use 2 for gaussian blob toy model)
+
         if self.n_embed > 0: 
             self.embedding_layer = nn.Linear(1, self.n_embed)
+            self.register_buffer("positional_embedding", self._get_sinusoidal_embedding(self.prompt_dim, self.n_embed))
+        else: 
+            ## No embedding, only positional information 
+            self.embedding_layer = nn.Identity()
+            self.register_buffer("positional_embedding", self._get_sinusoidal_embedding(self.prompt_dim, 1))
+
+
+    def _get_sinusoidal_embedding(self, num_positions, dim):
+        """Create sinusoidal positional encoding (fixed, not learnable)."""
+        pe = torch.zeros(num_positions, dim)
+        position = torch.arange(0, num_positions, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, dim, 2).float() * (-math.log(10000.0) / dim))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        return pe  # shape: (num_positions, dim)
 
     def forward(self, momentum): 
-        momentum.to(self.device)
+        momentum = momentum.to(self.device)
         batch_size = momentum.shape[0]
-        momentum = momentum.view(batch_size, 3, 1) #(batch, 3, 1)
-        if self.n_embed > 0: 
-            emb = self.embedding_layer(momentum) #(batch, 3, n_emb)
-        else: 
-            emb = momentum
-        return emb
+        cond_dim = momentum.shape[1]  # should be 3 (px, py, pz)
+
+        momentum = momentum.view(batch_size, cond_dim, 1)  # (batch, 3, 1)
+
+        ## Project to higher dimensions 
+        emb = self.embedding_layer(momentum)  # (batch, 3, n_embed)
+
+        ## Sinusoidal positional embedding
+        pos_emb = self.positional_embedding.unsqueeze(0)  # (1, 3, n_embed)
+
+        return emb + pos_emb
 
     def encode(self, x): 
-        return self(x) 
+        return self(x)
+
+# class MomentumEmbedder(AbstractEncoder): 
+
+#     def __init__(self, n_embed=256, device="cuda"):
+#         super().__init__()
+#         self.device = device
+#         self.n_embed = n_embed
+#         if self.n_embed > 0: 
+#             self.embedding_layer = nn.Linear(1, self.n_embed)
+
+#     def forward(self, momentum): 
+#         momentum.to(self.device)
+#         batch_size = momentum.shape[0]
+#         cond_dim = momentum.shape[1]
+#         momentum = momentum.view(batch_size, cond_dim, 1) #(batch, 3, 1)
+#         if self.n_embed > 0: 
+#             emb = self.embedding_layer(momentum) #(batch, 3, n_emb)
+#         else: 
+#             emb = momentum
+#         return emb
+
+#     def encode(self, x): 
+#         return self(x) 
 
     ## Modified timestep embedding from latent-diffusion/ldm/modules/diffusionmodules/model.py
     # def MomentumEmbedder(self, momentum):
@@ -248,16 +292,28 @@ class FrozenCLIPTextEmbedder(nn.Module):
 #         return self.model.encode_image(self.preprocess(x))
 
 if __name__ == "__main__": 
-    print("HERE")
 
-    mom = [389.9, -245.2, -32.53]
-    my_prompt = torch.tensor(mom, dtype=torch.float32) / 500 
+    bs = 2
+    embedder = MomentumEmbedder(n_embed=16, prompt_dim=3).to('cuda')
 
-    embedder = MomentumEmbedder(n_embed=1028)
+    mom1 = [389.9, -245.2, -32.53]
+    # mom1= [2,10]
+    prompt1 = torch.tensor(mom1, dtype=torch.float32) / 500 
+    prompt1 = prompt1.repeat(bs, 1) 
+    prompt1.to('cuda')
+
+    mom2 = [-245.2, 389.9, -32.53]
+    # mom2 = [10,2]
+    prompt2 = torch.tensor(mom2, dtype=torch.float32) / 500 
+    prompt2 = prompt2.repeat(bs, 1) 
+    prompt2.to('cuda')
     
-    my_emb = embedder.encode(my_prompt)
-    print(my_emb)
+    my_emb1 = embedder.encode(prompt1)
+    my_emb2 = embedder.encode(prompt2)
 
+    print("Cond1:", my_emb1.data.cpu().numpy())
+    print("Cond2:", my_emb2.data.cpu().numpy())
+    print("Cond Shape:", my_emb1.shape)
 
     # BERT = BERTEmbedder(n_embed=1280,n_layer=32).to('cuda')
     # my_text = "A basket of cherries" 

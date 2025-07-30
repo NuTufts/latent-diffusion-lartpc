@@ -25,7 +25,7 @@ from ldm.models.autoencoder import VQModelInterface, IdentityFirstStage, Autoenc
 from ldm.modules.diffusionmodules.util import make_beta_schedule, extract_into_tensor, noise_like
 from ldm.models.diffusion.ddim import DDIMSampler
 
-from ldm.modules.encoders.modules import MomentumEmbedder
+from ldm.emd_loss import *
 
 __conditioning_keys__ = {'concat': 'c_concat',
                          'crossattn': 'c_crossattn',
@@ -305,12 +305,31 @@ class DDPM(pl.LightningModule):
                 loss = torch.nn.functional.mse_loss(target, pred)
             else:
                 loss = torch.nn.functional.mse_loss(target, pred, reduction='none')
-        # elif self.loss_type == 'emd': 
-        #     pass 
-        #     if mean: 
-        #         pass 
+        elif self.loss_type == 'emd': 
+            loss = EMDLoss_Fast_3D(blur=0.01, balanced=True)(target, pred)
+            if mean: 
+                loss = loss.mean()
+        elif self.loss_type == 'hybrid':
+            emd_loss = EMDLoss_Fast_3D(blur=0.01, balanced=True)(target, pred)
+            l2_loss = loss = torch.nn.functional.mse_loss(target, pred, reduction='none').mean()
+            loss = l2_loss + emd_loss / 10
+            if mean: 
+                loss = loss.mean()
         else:
             raise NotImplementedError("unknown loss type '{loss_type}'")
+
+        # print("LOSS:", loss.shape)
+        # print("Loss_mean:", loss.mean())
+
+        # print(loss.grad_fn)
+        # print("HERE")
+        # print(loss.grad_fn.next_functions)
+
+        # for name, param in model.named_parameters():
+        #     if param.grad is not None:
+        #         print(f"{name}: grad mean = {param.grad.abs().mean().item()}")
+
+        # exit()
 
         return loss
 
@@ -328,7 +347,10 @@ class DDPM(pl.LightningModule):
         else:
             raise NotImplementedError(f"Paramterization {self.parameterization} not yet supported")
 
-        loss = self.get_loss(model_out, target, mean=False).mean(dim=[1, 2, 3])
+        if self.loss_type == 'emd' or self.loss_type == 'hybrid': 
+            loss = self.get_loss(model_out, target, mean=False)
+        else:
+            loss = self.get_loss(model_out, target, mean=False).mean(dim=[1, 2, 3])
 
         log_prefix = 'train' if self.training else 'val'
 
@@ -934,7 +956,7 @@ class LatentDiffusion(DDPM):
         self.print_me("LDM: forward")
 
         t = torch.randint(0, self.num_timesteps, (x.shape[0],), device=self.device).long()
-        ## ZEdit: Sample timesteps from linear distribution 
+        ## ZEdit: Sample timesteps from linear distribution (can modify for exponential)
         # weights = torch.arange(0, self.num_timesteps, device=self.device).float() ** 2
         # probabilities = weights / weights.sum() 
         # t = torch.multinomial(probabilities, x.shape[0], replacement=True).long()
@@ -1101,7 +1123,13 @@ class LatentDiffusion(DDPM):
         else:
             raise NotImplementedError()
 
-        loss_simple = self.get_loss(model_output, target, mean=False).mean([1, 2, 3])
+        if self.loss_type == 'emd' or self.loss_type == 'hybrid': 
+            loss_simple = self.get_loss(model_output, target, mean=False)
+        else: 
+            loss_simple = self.get_loss(model_output, target, mean=False).mean([1, 2, 3])
+
+        # print("LOSS SIMPLE", loss_simple.mean())
+
         loss_dict.update({f'{prefix}/loss_simple': loss_simple.mean()})
 
         self.logvar = self.logvar.to(self.device) ## https://github.com/CompVis/latent-diffusion/issues/228
@@ -1114,7 +1142,10 @@ class LatentDiffusion(DDPM):
 
         loss = self.l_simple_weight * loss.mean()
 
-        loss_vlb = self.get_loss(model_output, target, mean=False).mean(dim=(1, 2, 3))
+        if self.loss_type == 'emd' or self.loss_type == 'hybrid': 
+            loss_vlb = self.get_loss(model_output, target, mean=False)
+        else: 
+            loss_vlb = self.get_loss(model_output, target, mean=False).mean(dim=(1, 2, 3))
         loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
         loss_dict.update({f'{prefix}/loss_vlb': loss_vlb})
         loss += (self.original_elbo_weight * loss_vlb)

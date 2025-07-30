@@ -7,7 +7,7 @@ model:
     num_timesteps_cond: 1
     log_every_t: 300               ## Logging: frequency for progressive denoising 
     timesteps: 1000
-    loss_type: l2                     
+    loss_type: l2                 ## default is l2              
     first_stage_key: "image"
     # cond_stage_key: "image"      ## Unconditional 
     cond_stage_key: "momentum"     ## Condition on momentum 
@@ -43,7 +43,7 @@ model:
         num_heads: 4
         use_spatial_transformer: True ## Use cross attantion
         transformer_depth: 1          ## cond
-        context_dim: 1                ## Embedding dimension 
+        context_dim: 16               ## Embedding dimension (1 for no embedding)
         legacy: False ## cond
 
     first_stage_config:
@@ -51,9 +51,8 @@ model:
       params:
         embed_dim: 3
         monitor: "val/rec_loss"
-        ckpt_path: "protons64sqrt_ae_16x16x3/runs/checkpoints/epoch=000099.ckpt" 
-        # ckpt_path: "protons64sqrt_ae_16x16x3/runs/checkpoints/epoch=000142.ckpt" 
-        # ckpt_path: "protons64_ae_8x8x3/runs/checkpoints/last.ckpt"
+        # ckpt_path: "protons64v2_div10_16x16x3/runs/checkpoints/epoch=000147.ckpt" 
+        ckpt_path: "edep_protons64_ae16x16x3/runs/checkpoints/epoch=000120.ckpt" 
         ddconfig:
           double_z: True
           z_channels: 3
@@ -75,20 +74,20 @@ model:
     cond_stage_config: 
       target: ldm.modules.encoders.modules.MomentumEmbedder
       params:
-        # n_embed: 3
-        n_embed: 0 ## no embedding
+        prompt_dim: 3 
+        n_embed: 16 ## 0 = no embedding
 
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 64
+    batch_size: 128
     num_workers: 2
     wrap: False ## True
     train:
-      target: ldm.data.protons64.protons64Train
-      # target: ldm.data.protons64.protons64xTrain 
+      target: ldm.data.protons64.edepProtons64Train
+      # target: ldm.data.protons64.protons64xTrain
     validation:
-      target: ldm.data.protons64.protons64Validation
+      target: ldm.data.protons64.edepProtons64Validation
       # target: ldm.data.protons64.protons64xValidation
       
 
@@ -110,4 +109,4 @@ lightning:
     benchmark: False 
     # max_steps: 10000
     max_epochs: 150
-    val_check_interval: 200   ## 1000 Validation Frequency (batches) 
+    val_check_interval: 1000   ## Validation Frequency (every x batches) 

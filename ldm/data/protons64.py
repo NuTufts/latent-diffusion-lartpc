@@ -12,7 +12,8 @@ class protons(Dataset):
 				 data_root,
 				 num_batches,
 				 events_per_batch,
-				 only_one=False):
+				 only_one=False,
+				 v1=False):
 		self.data_root = data_root
 		self.num_batches = num_batches
 		self.events_per_batch = events_per_batch
@@ -20,6 +21,7 @@ class protons(Dataset):
 		self.only_one = only_one
 		if self.only_one:
 			self._length = 1000
+		self.v1 = v1
 
 	def __len__(self):
 		return self._length
@@ -32,11 +34,17 @@ class protons(Dataset):
 
 		## Load appropriate batch file 
 		batch_idx = i // self.events_per_batch
-		batch_file = os.path.join(self.data_root, f'protons64_{batch_idx}.npy')
+		if self.v1:
+			batch_file = os.path.join(self.data_root, f'protons64_{batch_idx}.npy')
+		else: 
+			batch_file = os.path.join(self.data_root, f'batch_{batch_idx}.npy')
 		batch_data = np.load(batch_file)
 		
 		## Load corresponding momentum
-		mom_file = os.path.join(self.data_root, f'protons64_mom_{batch_idx}.npy')
+		if self.v1:
+			mom_file = os.path.join(self.data_root, f'protons64_mom_{batch_idx}.npy')
+		else:
+			mom_file = os.path.join(self.data_root, f'batch_mom_{batch_idx}.npy')
 		mom_data = np.load(mom_file)
 
 		## Get specific event 
@@ -57,36 +65,56 @@ class protons(Dataset):
 		return example 
 
 
+
+class protons64Train_v1(protons):
+	def __init__(self, **kwargs):
+		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons64_div10/train", 
+						 num_batches=1152, events_per_batch=128, v1=True, **kwargs)
+
+class protons64Validation_v1(protons):
+	def __init__(self, **kwargs):
+		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons64_div10/val",
+						 num_batches=152, events_per_batch=128, v1=True, **kwargs)
+
+class protons64xTrain_v1(protons):
+	def __init__(self, **kwargs):
+		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons64x_div10/train",  
+						 num_batches=155, events_per_batch=128, v1=True, **kwargs)
+
+class protons64xValidation_v1(protons):
+	def __init__(self, **kwargs):
+		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons64x_div10/val",
+						num_batches=21, events_per_batch=128, v1=True, **kwargs)
+
+
+
 class protons64Train(protons):
 	def __init__(self, **kwargs):
-		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons64_sqrt/train", 
-						 num_batches=1152, events_per_batch=128, **kwargs)
-
+		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons64_div10_v2/train", 
+						 num_batches=1104, events_per_batch=128, **kwargs)
 
 class protons64Validation(protons):
 	def __init__(self, **kwargs):
-		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons64_sqrt/val",
-						 num_batches=152, events_per_batch=128, **kwargs)
-
+		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons64_div10_v2/val",
+						 num_batches=145, events_per_batch=128, **kwargs)
 
 class protons64xTrain(protons):
 	def __init__(self, **kwargs):
-		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons64x_sqrt/train",  
+		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons64x_div10_v2/train",  
 						 num_batches=155, events_per_batch=128, **kwargs)
-
 
 class protons64xValidation(protons):
 	def __init__(self, **kwargs):
-		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons64x_sqrt/val",
+		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons64x_div10_v2/val",
 						num_batches=21, events_per_batch=128, **kwargs)
 
 
-# class protons512Train(protons):
-# 	def __init__(self, **kwargs):
-# 		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons512/train", 
-# 						 num_batches=0, events_per_batch=64, **kwargs)
-		
-# class protons512Validation(protons):
-# 	def __init__(self, **kwargs):
-# 		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/protons512/val",
-# 						 num_batches=893, events_per_batch=64, **kwargs)
+class edepProtons64Train(protons):
+	def __init__(self, **kwargs):
+		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/edep_protons64/edep_train", 
+						 num_batches=2000, events_per_batch=128, **kwargs)
+
+class edepProtons64Validation(protons):
+	def __init__(self, **kwargs):
+		super().__init__(data_root="/n/holystore01/LABS/iaifi_lab/Users/zimani/datasets/edep_protons64/edep_val",
+						 num_batches=200, events_per_batch=128, **kwargs)

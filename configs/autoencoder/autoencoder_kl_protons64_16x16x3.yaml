@@ -34,13 +34,13 @@ model:
 data:
   target: main.DataModuleFromConfig
   params:
-    batch_size: 64 
+    batch_size: 128 
     wrap: True
-    num_workers: 2 ## default is batch_size*2 
+    num_workers: 4 ## default is batch_size*2 
     train:
-      target: ldm.data.protons64.protons64Train 
+      target: ldm.data.protons64.edepProtons64Train
     validation:
-      target: ldm.data.protons64.protons64Validation 
+      target: ldm.data.protons64.edepProtons64Validation
 
 lightning:
   callbacks:
@@ -55,4 +55,4 @@ lightning:
     benchmark: False 
     accumulate_grad_batches: 2
     max_epochs: 150 
-    val_check_interval: 500   ## Validation Frequency  
+    val_check_interval: 1000   ## Validation Frequency  

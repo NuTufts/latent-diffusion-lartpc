@@ -152,10 +152,16 @@ if __name__ == "__main__":
     os.makedirs(opt.outdir, exist_ok=True)
     outpath = opt.outdir
 
-    ## Construct and normalize momentum vector  
-    momentum = [float(opt.px), float(opt.py), float(opt.pz)]
-    prompt = torch.tensor(momentum, dtype=torch.float32).to(device) 
-    prompt = prompt / 500 
+    blobs = False  
+
+    ## Construct and normalize momentum vector 
+    if not blobs:  
+        momentum = [float(opt.px), float(opt.py), float(opt.pz)]
+        prompt = torch.tensor(momentum, dtype=torch.float32).to(device)
+        prompt = prompt / 500 
+    if blobs: 
+        momentum = [(2,10)] 
+        prompt = torch.tensor(momentum, dtype=torch.float32).to(device)
     prompts = prompt.repeat(opt.n_samples, 1)
 
     print(prompts.shape)
@@ -163,8 +169,7 @@ if __name__ == "__main__":
     print("Using prompt =", prompt)
 
     if opt.n_iter > 1:
-        sample_path = os.path.join(outpath, "samples")
-        os.makedirs(sample_path, exist_ok=True)
+        os.makedirs(outpath, exist_ok=True)
 
     with torch.no_grad():
         with model.ema_scope():
@@ -172,7 +177,12 @@ if __name__ == "__main__":
 
                 ## Tokenize and embed condition prompt 
                 c = model.cond_stage_model(prompts)
+
+                # print(prompts)
                 # print("Embdedded cond:", c.shape)
+                # print(c)
+
+                # exit() 
 
                 ## Null prompt (unconditional condition)
                 uc = "" 
@@ -197,19 +207,27 @@ if __name__ == "__main__":
 
                 # print("Output:", x_samples_ddim.shape)
 
+                # exit()
+
                 ## Plot grid of generated samples 
                 if opt.n_iter == 1:
                     grid_size = 4
                     fig, axes = plt.subplots(grid_size, grid_size, figsize=(8, 8))
                     axes = axes.ravel() # Flatten axes array for easy iteration 
 
-                    max_val = x_samples_ddim.max().item() # Max pixel value in batch (careful if all low energy)
+                    x_samples_ddim = x_samples_ddim #** 2 
+
+                    ## Scale plotting by max value in batch (careful if all low energy) 
+                    max_val = x_samples_ddim.max().item()
                     print("max", max_val)
                     
-                    fig.suptitle("Cond: "+str(momentum)+" / 500", fontsize=20)
+                    # fig.suptitle("Cond: "+str(momentum)+" / 500", fontsize=20)
+                    fig.suptitle("Cond: "+str(momentum), fontsize=20)
                     for i in range(grid_size**2):
                         axes[i].imshow(x_samples_ddim[i] , cmap='gray', interpolation='none', vmax=max_val)
                         axes[i].axis('off')
+                        if blobs: 
+                            axes[i].scatter(momentum[0][0], momentum[0][1], color='red', s=30, marker='x')
 
                     plt.tight_layout()
                     plt.savefig("cond_samples/cond_samples.png")
@@ -217,4 +235,4 @@ if __name__ == "__main__":
 
                 # Save 
                 if opt.n_iter > 1:
-                    np.save(sample_path + "/batch_"+str(n)+".npy", x_samples_ddim)
+                    np.save(outpath + "/batch_"+str(n)+".npy", x_samples_ddim)
