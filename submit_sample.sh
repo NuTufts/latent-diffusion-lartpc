@@ -11,6 +11,7 @@
 export CUDA_VISIBLE_DEVICES=0
 
 checkpoint_path="/model_weights/ldm/epoch=000040.ckpt"
+mkdir -p cond_samples
 
 ## Conditional Sampling 
 # python3 scripts/txt2img.py \
