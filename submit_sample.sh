@@ -10,11 +10,11 @@
 
 export CUDA_VISIBLE_DEVICES=0
 
-checkpoint_path="edep_protons64_ldm/runs/checkpoints/epoch=000144.ckpt"
+checkpoint_path="/model_weights/ldm/epoch=000040.ckpt"
 
 ## Conditional Sampling 
-# conda run -n ldm python3 scripts/txt2img.py \
-python3 scripts/txt2img.py \
+# python3 scripts/txt2img.py \
+conda run -n ldm python3 scripts/txt2img.py \
 	--base configs/latent-diffusion/protons64-ldm-kl.yaml \
 	--outdir one_mom_sample/sample1 \
 	--px "314.0" \
@@ -27,7 +27,7 @@ python3 scripts/txt2img.py \
 	--n_samples 128 \
 	--n_iter 1 \
 	--scale 5.0 \
-	--resume "$checkpoint_path"
+	--resume "$checkpoint_path"	
 
 ### 
 # # Momentums from bimodal validation dataset 
